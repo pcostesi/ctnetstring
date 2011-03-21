@@ -1,5 +1,5 @@
 /*
- * cnetstring.c
+ * tns.c
  *
  * Copyright 2011, Pablo Alejandro Costesich
  *
@@ -8,6 +8,7 @@
  */
 
 #include <stdlib.h>
+#include "tns.h"
 
 struct CTNetStr{
     tns_type   type;

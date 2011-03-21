@@ -1,5 +1,5 @@
 /*
- * cnetstring.h
+ * tns.h
  *
  * Copyright 2011, Pablo Alejandro Costesich
  *
