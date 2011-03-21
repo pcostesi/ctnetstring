@@ -1,0 +1,7 @@
+CTNETSTRINGS IS EXPERIMENTAL SOFTWARE - DON'T USE IT IN PRODUCTION.
+
+This project is aimed to provide a simple tnetstrings implementation in
+top of my C Data Structures library. I don't have plans to keep this
+library on par with Zed's canonical implementation (or any other).
+
+This library requires to be linked against the C Data Structures library.

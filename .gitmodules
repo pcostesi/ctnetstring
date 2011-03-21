@@ -1,0 +1,3 @@
+[submodule "lib/cds"]
+	path = lib/cds
+	url = git://github.com/pcostesi/c-data-structures.git
