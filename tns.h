@@ -8,43 +8,30 @@
  */
 
 #ifndef _CNETSTR
-#define _CNETSTR 0.1
+#define _CNETSTR "0.1-alpha"
 /* I should probably add parsing-event hooks to avoid the need for my
  * libs. That also means you could choose. */
 #include "ll.h"
 #include "ht.h"
 #include <stdio.h>
-
-#define TNS_BUFF_SIZE 16
-#define TNS_PARSE_STREAM 1
-#define TNS_PARSE_STRING 2
-#define TNS_PARSE_FD 3
-
+#include <stddef.h>
 
 typedef struct CTNetStr tnetstr;
 
 typedef enum CTNS_Types {
-    tns_String,     /* " */
+    tns_String,     /* , */
     tns_List,       /* ] */
     tns_HT,         /* } */
-    tns_Number,     /* # */
+    tns_Integer,     /* # */
     tns_None,       /* ~ */
-    tns_Boolean,    /* ! (true!, false!) */
+    tns_Boolean,    /* ! (true!, false!, yes!, no!, True!, False!) */
     tns_Unknown     /* Unknown data type */
 } tns_type;
 
-typedef struct {
-    char * text;
-    short  meaning;
-} tns_truth_tuple;
 
-const tns_truth_tuple tns_truth_table[] = {
-    {"true",  1}, {"True", 1},
-    {"false", 0}, {"False", 0},
-    {"yes", 1}, {"no", 0},
-    NULL
-}
-
-tnetstr *   tns_parse(char *);
+tnetstr * tns_fileparse(FILE * file);
+tnetstr * tns_parse(char * input);
+tnetstr * tns_parser(char * payload, size_t size, tns_type type);
+void tns_free(tnetstr * netstr);
 tns_type   tns_get_type(tnetstr *);
 #endif
