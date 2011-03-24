@@ -17,6 +17,14 @@
 #include <stddef.h>
 
 typedef struct CTNetStr tnetstr;
+typedef union CTNetStrPayload tns_payload;
+
+union CTNetStrPayload {
+    void *  ptr;
+    int     integer;
+    char *  str;
+    short   bool;
+};
 
 typedef enum CTNS_Types {
     tns_String,     /* , */
@@ -34,4 +42,5 @@ tnetstr * tns_parse(char * input);
 tnetstr * tns_parser(char * payload, size_t size, tns_type type);
 void tns_free(tnetstr * netstr);
 tns_type   tns_get_type(tnetstr *);
+tns_payload tns_get_payload(tnetstr *);
 #endif

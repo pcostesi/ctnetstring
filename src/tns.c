@@ -9,25 +9,21 @@
 
 #include <stdlib.h>
 #include <ctype.h>
+#include <string.h>
 #include "tns.h"
 #ifdef _TNS_FDPARSE
 #include <unistd.h>
 #endif
 
 #define GUARD(got, error) if ((got) == (error)) return NULL
-#define JUMP(got, error, jump) do {if ((got) == (error)) goto jump} while(0)
+#define JUMP(got, error, jump) do{if ((got) == (error)) {goto jump;}}while(0)
 
 struct CTNetStr{
-    tns_type   type;
-    union {
-        void *  ptr;
-        int     integer;
-        char *  str;
-        short   bool;
-    } payload;
+    tns_type    type;
+    tns_payload payload;
 };
 
-static typedef struct {
+typedef struct {
     char * text;
     short  meaning;
 } tns_truth_tuple;
@@ -37,17 +33,17 @@ static const tns_truth_tuple tns_truth_table[] = {
     {"false", 0}, {"False", 0},
     {"yes", 1}, {"no", 0},
     NULL
-}
+};
 
-static int next_fragment(char * in, char * start, int * size, tnetstr * type);
-static tnetstr * parse_Boolean(char * input, int len);
-static tnetstr * parse_Integer(char * input, int len);
-static tnetstr * parse_HT(char * input, int len);
-static tnetstr * parse_List(char * input, int len);
-static tnetstr * parse_String(char * input, int len);
+static int next_fragment(char * in, char ** start, size_t * size, tns_type * );
+static tnetstr * parse_Boolean(char * input, size_t len);
+static tnetstr * parse_Integer(char * input, size_t len);
+static tnetstr * parse_HT(char * input, size_t len);
+static tnetstr * parse_List(char * input, size_t len);
+static tnetstr * parse_String(char * input, size_t len);
 static tnetstr * new_tnetstr(tns_type type);
 static tns_type get_msg_type(char t);
-static int get_msg_size(char * input, int * trailing, int * offset);
+static int get_msg_size(char * input, size_t * trailing, size_t * offset);
 static int free_tns_ht(size_t s, const char * k, const void * v, void * d);
 
 /* Public functions */
@@ -83,13 +79,13 @@ tnetstr * tns_fdparse(int fd){
 tnetstr * tns_fileparse(FILE * file){
     char * payload;
     tns_type type;
-    size_t size, total;
+    int size, total;
 
     GUARD(fscanf(file, "%d:", &size), 0);
     payload = malloc(size);
     GUARD(payload, NULL);
 
-    total = fread(payload, size, 1, file);
+    total = fread(payload, (size_t) size, 1, file);
     if (total < size && ferror(file))
         return NULL;
 
@@ -125,22 +121,23 @@ tnetstr * tns_parser(char * payload, size_t size, tns_type type){
             break;
 
         case tns_List:
-            ret = parse_List(input, len);
+            ret = parse_List(payload, size);
             break;
 
         case tns_Boolean:
-            ret = parse_Boolean(input, len);
+            ret = parse_Boolean(payload, size);
             break;
 
         case tns_Integer:
-            ret = parse_Integer(input, len);
+            ret = parse_Integer(payload, size);
             break;
 
         case tns_HT:
-            ret = parse_HT(input, len);
+            ret = parse_HT(payload, size);
             break;
 
         default:
+            return NULL;
             /* free stuff up and throw an error */
     }
 }
@@ -153,7 +150,7 @@ void tns_free(tnetstr * netstr){
         case tns_String:
             free(netstr->payload.str);
             break;
-        case tns_List:
+        case tns_HT:
             ht_each((ht *) netstr->payload.ptr, free_tns_ht, NULL);
             ht_free((ht *) netstr->payload.ptr);
             break;
@@ -171,6 +168,10 @@ void tns_free(tnetstr * netstr){
 
 tns_type tns_get_type(tnetstr * tns){
     return tns->type;
+}
+
+tns_payload tns_get_payload(tnetstr * tns){
+    return tns->payload;
 }
 
 /* Helpers and other private functions */
@@ -247,14 +248,14 @@ static tnetstr * parse_String(char * input, size_t len){
 static tnetstr * parse_List(char * input, size_t len){
     tnetstr * ret, * element;
     char * frag;
-    int frag_size, consumed, next;
+    size_t frag_size, consumed, next;
     tns_type frag_type;
     llist * list, * aux_list;
 
     ret = new_tnetstr(tns_List);
     GUARD(ret, NULL);
     consumed = 0;
-    while (size - consumed > 0){
+    while (len - consumed > 0){
         next = next_fragment(input + consumed, &frag, &frag_size, &frag_type);
         JUMP(next, -1, fragment_error);
         consumed += next;
@@ -278,7 +279,8 @@ static tnetstr * parse_List(char * input, size_t len){
 static tnetstr * parse_HT(char * input, size_t len){
     tnetstr * ret, * element;
     char * frag, * key = NULL, * key_aux = NULL;
-    int frag_size, consumed, next;
+    size_t frag_size, consumed;
+    int next;
     int buffer = 0;
     tns_type frag_type;
     ht * table;
@@ -294,7 +296,7 @@ static tnetstr * parse_HT(char * input, size_t len){
     }
     ret->payload.ptr = table;
 
-    while (size - consumed > 0){
+    while (len - consumed > 0){
         /* parse the string key */
         next = next_fragment(input + consumed, &frag, &frag_size, &frag_type);
         JUMP(next, -1, fragment_error);
@@ -346,9 +348,9 @@ static tnetstr * parse_Boolean(char * input, size_t len){
     tnetstr * ret = new_tnetstr(tns_Boolean);
     GUARD(ret, NULL);
 
-    for (idx = 0; tns_truth_table[idx] != NULL; idx++){
-        if (!strncmp(input, tns_truth_table[idx]->text, len){
-            ret->payload.bool = tns_truth_table[idx]->meaning;
+    for (idx = 0; idx < sizeof(tns_truth_table); idx++){
+        if (!strncmp(input, tns_truth_table[idx].text, len)){
+            ret->payload.bool = tns_truth_table[idx].meaning;
             return ret;
         }
     }
@@ -356,13 +358,16 @@ static tnetstr * parse_Boolean(char * input, size_t len){
     return NULL;
 }
 
-static int next_fragment(char * in, char * start, size_t * size, tnetstr * type){
+static int next_fragment(char * in, char ** start, size_t * size, tns_type * type){
     int consumed;
+    size_t offset, trailing;
 
-    consumed = get_msg_size(in, size, start);
-    GUARD(consumed, -1);
+    consumed = get_msg_size(in, &trailing, &offset);
+    if (consumed == -1)
+        return 0;
     *type = get_msg_type(in[consumed]);
-
+    *start = in + offset;
+    *size = trailing;
     return consumed + 1;
 }
 
