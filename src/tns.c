@@ -289,7 +289,7 @@ size_t tns_strlen(tnetstr * tns){
 /* Helpers and other private functions */
 
 static int free_tns_ht(size_t s, const char * k, const void * v, void * d){
-    tns_free((tnetstr *) v);
+    tns_free(*((tnetstr **) v));
     return 0;
 }
 
