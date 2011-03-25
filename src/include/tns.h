@@ -17,14 +17,6 @@
 #include <stddef.h>
 
 typedef struct CTNetStr tnetstr;
-typedef union CTNetStrPayload tns_payload;
-
-union CTNetStrPayload {
-    void *  ptr;
-    int     integer;
-    char *  str;
-    short   bool;
-};
 
 typedef enum CTNS_Types {
     tns_String,     /* , */
@@ -37,10 +29,44 @@ typedef enum CTNS_Types {
 } tns_type;
 
 
+/* parsing and parsing primitives */
+#ifdef _TNS_FDPARSE
+tnetstr * tns_fdparse(int fd);
+#endif
 tnetstr * tns_fileparse(FILE * file);
 tnetstr * tns_parse(char * input);
 tnetstr * tns_parser(char * payload, size_t size, tns_type type);
+
+/* type macros */
+#define TNS_is_None(T) tns_get_type(T) == tns_None
+#define TNS_is_HT(T) tns_get_type(T) == tns_HT
+#define TNS_is_List(T) tns_get_type(T) == tns_List
+#define TNS_is_String(T) tns_get_type(T) == tns_String
+#define TNS_is_Integer(T) tns_get_type(T) == tns_Integer
+#define TNS_is_Boolean(T) tns_get_type(T) == tns_Boolean
+
+/* type getters */
+int     tns_int(tnetstr *);
+size_t  tns_str(tnetstr *, char * buff, size_t s);
+int     tns_bool(tnetstr *);
+
+/* type modifiers */
+tnetstr * tns_get_dict(tnetstr * tns, char * key);
+tnetstr * tns_set_dict(tnetstr * tns, char * key, tnetstr * val);
+tnetstr * tns_del_dict(tnetstr * tns, char * key);
+
+/* type constructors */
+tnetstr * tns_new_str(char * str, size_t s);
+tnetstr * tns_new_int(int i);
+tnetstr * tns_new_bool(int b);
+tnetstr * tns_new_none(void);
+tnetstr * tns_new_ht(void);
+/* tnetstr * tns_new_list(void); */
+
+/* misc (free, type) */
 void tns_free(tnetstr * netstr);
 tns_type   tns_get_type(tnetstr *);
-tns_payload tns_get_payload(tnetstr *);
+size_t tns_strlen(tnetstr * tns);
+
+
 #endif

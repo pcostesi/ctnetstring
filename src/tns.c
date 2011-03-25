@@ -20,8 +20,17 @@
 
 struct CTNetStr{
     tns_type    type;
-    tns_payload payload;
+    union {
+        void *  ptr;
+        int     integer;
+        char *  str;
+        unsigned short   bool;
+    } payload;
 };
+
+tnetstr None = {tns_None, NULL};
+tnetstr Yes = {.type = tns_Boolean, .payload.bool = 1};
+tnetstr No = {.type = tns_Boolean, .payload.bool = 0};
 
 typedef struct {
     char * text;
@@ -161,17 +170,120 @@ void tns_free(tnetstr * netstr){
                 tns_free(tmp);
             }
             ll_free((llist *) netstr->payload.ptr);
+        case tns_Boolean:
+        case tns_None:
+            return;
     }
     free(netstr);
 }
 
+tnetstr * tns_get_dict(tnetstr * tns, char * key){
+    tnetstr * ret;
+    size_t s;
+
+    if (tns->type != tns_HT)
+        return NULL;
+    s = ht_get(tns->payload.ptr, key, &ret, sizeof(tnetstr *));
+    return s ? ret : NULL;
+}
+
+tnetstr * tns_set_dict(tnetstr * tns, char * key, tnetstr * val){
+    ht * t;
+
+    if (tns->type != tns_HT)
+        return NULL;
+    t = ht_set(tns->payload.ptr, key, &val, sizeof(tnetstr *));
+    return t == NULL ? NULL : tns;
+}
+
+tnetstr * tns_del_dict(tnetstr * tns, char * key){
+    ht * t;
+
+    if (tns->type != tns_HT)
+        return NULL;
+    t = ht_del(tns->payload.ptr, key);
+    return t == NULL ? NULL : tns;
+}
+
+tnetstr * tns_new_str(char * str, size_t s){
+    tnetstr * ret;
+
+    s = s ? s : strlen(str);
+    ret = new_tnetstr(tns_String);
+    GUARD(ret, NULL);
+    ret->payload.str = malloc(s + 1);
+    if(ret->payload.str){
+        free(ret);
+        return NULL;
+    }
+    strncpy(ret->payload.str, str, s);
+    return ret;
+}
+
+tnetstr * tns_new_int(int i){
+    tnetstr * ret;
+
+    ret = new_tnetstr(tns_Integer);
+    GUARD(ret, NULL);
+    ret->payload.integer = i;
+    return ret;
+}
+
+tnetstr * tns_new_bool(int b){
+    tnetstr * ret;
+
+    ret = new_tnetstr(tns_Boolean);
+    GUARD(ret, NULL);
+    ret->payload.bool = (unsigned short) b;
+    return ret;
+}
+
+tnetstr * tns_new_none(void){
+    return new_tnetstr(tns_None);
+}
+
+tnetstr * tns_new_ht(void){
+    tnetstr * ret;
+    ht * t;
+
+    ret = new_tnetstr(tns_HT);
+    GUARD(ret, NULL);
+    t = ht_new(NULL);
+    if (t == NULL){
+        free(ret);
+        return NULL;
+    }
+    ret->payload.ptr = t;
+    return ret;
+}
 
 tns_type tns_get_type(tnetstr * tns){
     return tns->type;
 }
 
-tns_payload tns_get_payload(tnetstr * tns){
-    return tns->payload;
+int tns_int(tnetstr * tns){
+    return tns->payload.integer;
+}
+
+size_t tns_str(tnetstr * tns, char * buff, size_t s){
+    size_t l;
+
+    if (tns->type != tns_String)
+        return 0;
+    l = strlen(tns->payload.str);
+    l = s < l ? s : l;
+    strncpy(buff, tns->payload.str, l);
+    return l;
+}
+
+int tns_bool(tnetstr * tns){
+    return tns->payload.bool;
+}
+
+size_t tns_strlen(tnetstr * tns){
+    if (tns->type != tns_String)
+        return 0;
+    return strlen(tns->payload.str);
 }
 
 /* Helpers and other private functions */
@@ -220,9 +332,15 @@ static tns_type get_msg_type(char t){
 }
 
 static tnetstr * new_tnetstr(tns_type type){
-    tnetstr * ret = malloc(sizeof(tnetstr));
-    if (ret)
-        ret->type = type;
+    tnetstr * ret;
+    switch(type){
+        case tns_None:
+            ret = &None;
+        default:
+        ret = malloc(sizeof(tnetstr));
+        if (ret)
+            ret->type = type;
+    }
     return ret;
 }
 
@@ -278,10 +396,9 @@ static tnetstr * parse_List(char * input, size_t len){
 
 static tnetstr * parse_HT(char * input, size_t len){
     tnetstr * ret, * element;
-    char * frag, * key = NULL, * key_aux = NULL;
+    char * frag, * key = NULL;
     size_t frag_size, consumed;
     int next;
-    int buffer = 0;
     tns_type frag_type;
     ht * table;
 
@@ -296,18 +413,14 @@ static tnetstr * parse_HT(char * input, size_t len){
     }
     ret->payload.ptr = table;
 
+    key = malloc(len);
+    JUMP(key, NULL, fragment_error);
+
     while (len - consumed > 0){
         /* parse the string key */
         next = next_fragment(input + consumed, &frag, &frag_size, &frag_type);
         JUMP(next, -1, fragment_error);
         consumed += next;
-
-        if (buffer < frag_size + 1){
-            buffer = frag_size + 1;
-            key_aux = realloc(key, buffer);
-            JUMP(key_aux, NULL, fragment_error);
-            key = key_aux;
-        }
 
         strncpy(key, frag, frag_size);
         key[frag_size] = 0;
@@ -345,16 +458,22 @@ static tnetstr * parse_Integer(char * input, size_t len){
 
 static tnetstr * parse_Boolean(char * input, size_t len){
     int idx;
+    /*
     tnetstr * ret = new_tnetstr(tns_Boolean);
     GUARD(ret, NULL);
-
+    */
     for (idx = 0; idx < sizeof(tns_truth_table); idx++){
         if (!strncmp(input, tns_truth_table[idx].text, len)){
-            ret->payload.bool = tns_truth_table[idx].meaning;
+            /*
+            ret->payload.bool = (unsigned short) tns_truth_table[idx].meaning;
             return ret;
+            */
+            return tns_truth_table[idx].meaning ? &Yes : &No;
         }
     }
+    /*
     free(ret);
+    */
     return NULL;
 }
 
