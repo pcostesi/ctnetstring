@@ -32,17 +32,6 @@ tnetstr None = {tns_None, NULL};
 tnetstr Yes = {.type = tns_Boolean, .payload.bool = 1};
 tnetstr No = {.type = tns_Boolean, .payload.bool = 0};
 
-typedef struct {
-    char * text;
-    short  meaning;
-} tns_truth_tuple;
-
-static const tns_truth_tuple tns_truth_table[] = {
-    {"true",  1}, {"True", 1},
-    {"false", 0}, {"False", 0},
-    {"yes", 1}, {"no", 0},
-    NULL
-};
 
 static int next_fragment(char * in, char ** start, size_t * size, tns_type * );
 static tnetstr * parse_Boolean(char * input, size_t len);
@@ -457,24 +446,7 @@ static tnetstr * parse_Integer(char * input, size_t len){
 }
 
 static tnetstr * parse_Boolean(char * input, size_t len){
-    int idx;
-    /*
-    tnetstr * ret = new_tnetstr(tns_Boolean);
-    GUARD(ret, NULL);
-    */
-    for (idx = 0; idx < sizeof(tns_truth_table); idx++){
-        if (!strncmp(input, tns_truth_table[idx].text, len)){
-            /*
-            ret->payload.bool = (unsigned short) tns_truth_table[idx].meaning;
-            return ret;
-            */
-            return tns_truth_table[idx].meaning ? &Yes : &No;
-        }
-    }
-    /*
-    free(ret);
-    */
-    return NULL;
+    return strncmp(input, "true", len) ? &No : &Yes;
 }
 
 static int next_fragment(char * in, char ** start, size_t * size, tns_type * type){
