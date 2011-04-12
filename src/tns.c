@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <limits.h>
 #include "tns.h"
 #ifdef _TNS_FDPARSE
 #include <unistd.h>
@@ -51,14 +52,14 @@ static int free_tns_ht(size_t s, const char * k, const void * v, void * d);
 
 /* TODO: make a nonblocking-enabled version of this function */
 tnetstr * tns_fdparse(int fd){
-    int n = 0;
-    char c;
-    char * payload;
-    tns_type type;
+    unsigned n = 0;
+    char c = 0;
+    char * payload = NULL;
+    tns_type type = tns_Unknown;
 
     while (read(fd, &c, 1) != -1 && c != ':'){
         acc++;
-        if (isdigit(c))
+        if (isdigit(c) && c - '0' =< UINT_MAX - n)
             n = 10 * n + c - '0';
         else
             return NULL;
@@ -75,17 +76,26 @@ tnetstr * tns_fdparse(int fd){
 #endif
 
 tnetstr * tns_fileparse(FILE * file){
-    char * payload;
-    tns_type type;
-    int size, total;
+    char * payload = NULL;
+    tns_type type = tns_Unknown;
+    int size = 0;
+    int total = 0;
 
+	if (file == NULL)
+		return NULL;
+		
     GUARD(fscanf(file, "%d:", &size), 0);
+    if (size > UINT_MAX)
+		return NULL;
+    
     payload = malloc(size);
     GUARD(payload, NULL);
 
     total = fread(payload, (size_t) size, 1, file);
-    if (total < size && ferror(file))
+    if (total < size && ferror(file)){
+		free(payload);
         return NULL;
+	}
 
     return tns_parser(payload, size, type);
 }
