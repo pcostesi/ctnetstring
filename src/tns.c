@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <limits.h>
+#include <errno.h>
 #include "tns.h"
 #ifdef _TNS_FDPARSE
 #include <unistd.h>
@@ -52,14 +53,14 @@ static int free_tns_ht(size_t s, const char * k, const void * v, void * d);
 
 /* TODO: make a nonblocking-enabled version of this function */
 tnetstr * tns_fdparse(int fd){
-    unsigned n = 0;
+    size_t n = 0;
     char c = 0;
     char * payload = NULL;
     tns_type type = tns_Unknown;
 
     while (read(fd, &c, 1) != -1 && c != ':'){
         acc++;
-        if (isdigit(c) && c - '0' =< UINT_MAX - n)
+        if (isdigit(c) && c - '0' =< SIZE_MAX - n)
             n = 10 * n + c - '0';
         else
             return NULL;
@@ -78,14 +79,14 @@ tnetstr * tns_fdparse(int fd){
 tnetstr * tns_fileparse(FILE * file){
     char * payload = NULL;
     tns_type type = tns_Unknown;
-    int size = 0;
+    size_t size = 0;
     int total = 0;
 
 	if (file == NULL)
 		return NULL;
 		
     GUARD(fscanf(file, "%d:", &size), 0);
-    if (size > UINT_MAX)
+    if (size > SIZE_MAX)
 		return NULL;
     
     payload = malloc(size);
@@ -101,13 +102,16 @@ tnetstr * tns_fileparse(FILE * file){
 }
 
 tnetstr * tns_parse(char * input){
-    size_t trailing, offset;
-    int total;
-    char * payload;
+    size_t trailing = 0;
+    size_t offset = 0;
+    int total = -1;
+    char * payload = NULL;
     tns_type type = tns_Unknown;
 
+	GUARD(input, NULL);
     total = get_msg_size(input, &trailing, &offset);
     GUARD(total, -1);
+    
     payload = input + offset;
     type = get_msg_type((size_t) input[total]);
 
@@ -117,6 +121,8 @@ tnetstr * tns_parse(char * input){
 
 tnetstr * tns_parser(char * payload, size_t size, tns_type type){
     tnetstr * ret = NULL;
+    
+    GUARD(payload, NULL);
 
     switch(type){
 
@@ -151,17 +157,23 @@ tnetstr * tns_parser(char * payload, size_t size, tns_type type){
 }
 
 void tns_free(tnetstr * netstr){
-    llist * list;
-    tnetstr * tmp;
+    llist * list = NULL;
+    tnetstr * tmp = NULL;
+	
+	if (netstr == NULL)
+		return;
 
     switch(netstr->type){
+    
         case tns_String:
             free(netstr->payload.str);
             break;
+    
         case tns_HT:
             ht_each((ht *) netstr->payload.ptr, free_tns_ht, NULL);
             ht_free((ht *) netstr->payload.ptr);
             break;
+    
         case tns_List:
             list = (llist *) netstr->payload.ptr;
             for (; list != NULL; list = ll_next(list)){
@@ -169,58 +181,74 @@ void tns_free(tnetstr * netstr){
                 tns_free(tmp);
             }
             ll_free((llist *) netstr->payload.ptr);
+    
         case tns_Boolean:
         case tns_None:
             return;
     }
+    
     free(netstr);
 }
 
 tnetstr * tns_get_dict(tnetstr * tns, char * key){
-    tnetstr * ret;
-    size_t s;
+    tnetstr * ret = NULL;
+    size_t s = NULL;
+	
+	if (tns == NULL || key == NULL)
+		return NULL;
 
     if (tns->type != tns_HT)
         return NULL;
+    
     s = ht_get(tns->payload.ptr, key, &ret, sizeof(tnetstr *));
+    
     return s ? ret : NULL;
 }
 
 tnetstr * tns_set_dict(tnetstr * tns, char * key, tnetstr * val){
-    ht * t;
+    ht * t = NULL;
 
-    if (tns->type != tns_HT)
+    if (tns == NULL || tns->type != tns_HT || key == NULL)
         return NULL;
+    
     t = ht_set(tns->payload.ptr, key, &val, sizeof(tnetstr *));
+    
     return t == NULL ? NULL : tns;
 }
 
 tnetstr * tns_del_dict(tnetstr * tns, char * key){
-    ht * t;
+    ht * t = NULL;
 
-    if (tns->type != tns_HT)
+    if (tns == NULL || tns->type != tns_HT || key == NULL)
         return NULL;
+    
     t = ht_del(tns->payload.ptr, key);
     return t == NULL ? NULL : tns;
 }
 
 tnetstr * tns_new_str(char * str, size_t s){
-    tnetstr * ret;
+    tnetstr * ret = NULL;
+	
+	GUARD(str, NULL);
 
     s = s ? s : strlen(str);
     ret = new_tnetstr(tns_String);
     GUARD(ret, NULL);
+    
     ret->payload.str = malloc(s + 1);
+    
     if(ret->payload.str){
         free(ret);
         return NULL;
     }
+    
     strncpy(ret->payload.str, str, s);
+    
     return ret;
 }
 
 tnetstr * tns_new_int(int i){
-    tnetstr * ret;
+    tnetstr * ret = NULL;
 
     ret = new_tnetstr(tns_Integer);
     GUARD(ret, NULL);
@@ -229,7 +257,7 @@ tnetstr * tns_new_int(int i){
 }
 
 tnetstr * tns_new_bool(int b){
-    tnetstr * ret;
+    tnetstr * ret = NULL;
 
     ret = new_tnetstr(tns_Boolean);
     GUARD(ret, NULL);
@@ -242,8 +270,8 @@ tnetstr * tns_new_none(void){
 }
 
 tnetstr * tns_new_ht(void){
-    tnetstr * ret;
-    ht * t;
+    tnetstr * ret = NULL;
+    ht * t = NULL;
 
     ret = new_tnetstr(tns_HT);
     GUARD(ret, NULL);
@@ -261,12 +289,27 @@ tns_type tns_get_type(tnetstr * tns){
 }
 
 int tns_int(tnetstr * tns){
+	assert(tns != NULL);
+	
+	if (tns == NULL){
+		errno = EDOM;
+		return -1;
+	}
+	
     return tns->payload.integer;
 }
 
 size_t tns_str(tnetstr * tns, char * buff, size_t s){
-    size_t l;
-
+    size_t l = 0;
+	
+	assert(tns != NULL);
+	assert(buff != NULL);
+	
+	if (tns == NULL || buff == NULL){
+		errno = EDOM;
+		return 0;
+	}
+	
     if (tns->type != tns_String)
         return 0;
     l = strlen(tns->payload.str);
@@ -276,10 +319,19 @@ size_t tns_str(tnetstr * tns, char * buff, size_t s){
 }
 
 int tns_bool(tnetstr * tns){
+	assert(tns != NULL);
+	
+	if (tns == NULL)
+		return 0;
     return tns->payload.bool;
 }
 
 size_t tns_strlen(tnetstr * tns){
+	assert(tns != NULL);
+	
+	if (tns == NULL)
+		return 0;
+    
     if (tns->type != tns_String)
         return 0;
     return strlen(tns->payload.str);
@@ -288,27 +340,36 @@ size_t tns_strlen(tnetstr * tns){
 /* Helpers and other private functions */
 
 static int free_tns_ht(size_t s, const char * k, const void * v, void * d){
+	
+	/* The following is guaranteed NOT to happen by C Data Structures */
+	assert(v != NULL);
+	assert(k != NULL);
+	
     tns_free(*((tnetstr **) v));
     return 0;
 }
 
 /** returns consumed bytes */
 static int get_msg_size(char * input, size_t * trailing, size_t * offset){
-    int n;
-    size_t x = 0;
+    char c = 0;
+    size_t buff_size = 0;
     size_t acc = 1;
+    
+    assert(input != NULL);
+    assert(trailing != NULL);
+    assert(offset != NULL);
 
-    while ((n = *input++) && n != ':'){
+    while ((c = *input++) && c != ':'){
         acc++;
-        if (isdigit(n))
-            x = 10 * x + n - '0';
+        if (isdigit(c) && c - '0' =< SIZE_MAX - buff_size)
+            buff_size = 10 * buff_size + c - '0';
         else
             return -1;
     }
     *offset = acc;
-    *trailing = x;
+    *trailing = buff_size;
 
-    return acc + x;
+    return acc + buff_size;
 }
 
 static tns_type get_msg_type(char t){
@@ -331,24 +392,30 @@ static tns_type get_msg_type(char t){
 }
 
 static tnetstr * new_tnetstr(tns_type type){
-    tnetstr * ret;
+    tnetstr * ret = NULL;
+    
     switch(type){
         case tns_None:
             ret = &None;
+            
         default:
-        ret = malloc(sizeof(tnetstr));
-        if (ret)
-            ret->type = type;
+			ret = malloc(sizeof(tnetstr));
+			if (ret != NULL)
+				ret->type = type;
     }
+    
     return ret;
 }
 
 static tnetstr * parse_String(char * input, size_t len){
-    char * c;
-    tnetstr * ret;
+    char * c = NULL;
+    tnetstr * ret = NULL;
+
+	assert(input != NULL);
 
     ret = new_tnetstr(tns_String);
     GUARD(ret, NULL);
+    
     c = malloc(len + 1);
     if (c == NULL){
         free(ret);
@@ -363,23 +430,31 @@ static tnetstr * parse_String(char * input, size_t len){
 }
 
 static tnetstr * parse_List(char * input, size_t len){
-    tnetstr * ret, * element;
-    char * frag;
-    size_t frag_size, consumed, next;
-    tns_type frag_type;
-    llist * list, * aux_list;
+    tnetstr * ret = NULL;
+    tnetstr * element = NULL;
+    char * frag = NULL;
+    size_t frag_size = 0;
+    size_t consumed = 0;
+    size_t next = 0;
+    tns_type frag_type = tns_Unknown;
+    llist * list = NULL;
+    llist * aux_list = NULL;
 
     ret = new_tnetstr(tns_List);
     GUARD(ret, NULL);
-    consumed = 0;
+    
     while (len - consumed > 0){
+		
         next = next_fragment(input + consumed, &frag, &frag_size, &frag_type);
         JUMP(next, -1, fragment_error);
+        
         consumed += next;
         element = tns_parser(frag, frag_size, frag_type);
         JUMP(element, NULL, element_error);
+        
         aux_list = ll_insert(list, &element, sizeof(tnetstr *));
         JUMP(aux_list, NULL, element_error);
+        
         list = aux_list;
     }
 
@@ -394,15 +469,19 @@ static tnetstr * parse_List(char * input, size_t len){
 }
 
 static tnetstr * parse_HT(char * input, size_t len){
-    tnetstr * ret, * element;
-    char * frag, * key = NULL;
-    size_t frag_size, consumed;
-    int next;
-    tns_type frag_type;
-    ht * table;
+    tnetstr * ret = NULL;
+    tnetstr * element = NULL;
+    char * frag = NULL;
+    char * key = NULL;
+    size_t frag_size = 0;
+    size_t consumed = 0;
+    int next = 0;
+    tns_type frag_type = tns_Unknown;
+    ht * table = NULL;
 
-    consumed = 0;
-    table = ht_new(NULL);
+	assert(input != NULL);
+	
+	table = ht_new(NULL);
     GUARD(table, NULL);
 
     ret = new_tnetstr(tns_HT);
@@ -412,6 +491,7 @@ static tnetstr * parse_HT(char * input, size_t len){
     }
     ret->payload.ptr = table;
 
+	/* TODO: Fix this, using char-ranges instead of a buffer (this is ugly) */
     key = malloc(len);
     JUMP(key, NULL, fragment_error);
 
@@ -427,9 +507,11 @@ static tnetstr * parse_HT(char * input, size_t len){
         /* do the same, but for the matching value */
         next = next_fragment(input + consumed, &frag, &frag_size, &frag_type);
         JUMP(next, -1, fragment_error);
+        
         consumed += next;
         element = tns_parser(frag, frag_size, frag_type);
         JUMP(element, NULL, element_error);
+        
         table = ht_set(table, key, &element, sizeof(tnetstr *));
         JUMP(table, NULL, element_error);
     }
@@ -445,30 +527,46 @@ static tnetstr * parse_HT(char * input, size_t len){
 }
 
 static tnetstr * parse_Integer(char * input, size_t len){
-    int n;
-    tnetstr * ret = new_tnetstr(tns_Integer);
+    size_t n = 0;
+    tnetstr * ret = NULL;
+    
+    assert(input != NULL);
+    
+    ret = new_tnetstr(tns_Integer);
     GUARD(ret, NULL);
 
     for (n = 0; len > 0 && isdigit(*input); len--, input++){
         n = n * 10 + *input - '0';
     }
+    
     ret->payload.integer = n;
+    return ret;
 }
 
 static tnetstr * parse_Boolean(char * input, size_t len){
+	assert(input != NULL);
+	
     return strncmp(input, "true", len) ? &No : &Yes;
 }
 
 static int next_fragment(char * in, char ** start, size_t * size, tns_type * type){
-    int consumed;
-    size_t offset, trailing;
+    int consumed = -1;
+    size_t offset = 0;
+    size_t trailing = 0;
 
+	assert(in != NULL);
+	assert(start != NULL);
+	assert(size != NULL);
+	assert(type != NULL);
+	
     consumed = get_msg_size(in, &trailing, &offset);
     if (consumed == -1)
         return 0;
+        
     *type = get_msg_type(in[consumed]);
     *start = in + offset;
     *size = trailing;
+    
     return consumed + 1;
 }
 

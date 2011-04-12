@@ -19,13 +19,13 @@
 typedef struct CTNetStr tnetstr;
 
 typedef enum CTNS_Types {
-    tns_String,     /* , */
-    tns_List,       /* ] */
-    tns_HT,         /* } */
-    tns_Integer,     /* # */
-    tns_None,       /* ~ */
-    tns_Boolean,    /* ! (true!, false!, yes!, no!, True!, False!) */
-    tns_Unknown     /* Unknown data type */
+	tns_Unknown	= 0  ,	/* Unknown data type */
+    tns_String	= ',',	/* , */
+    tns_List	= ']',	/* ] */
+    tns_HT		= '}',	/* } */
+    tns_Integer	= '#',	/* # */
+    tns_None	= '~',	/* ~ */
+    tns_Boolean	= '!' 	/* ! (true!, false!, yes!, no!, True!, False!) */
 } tns_type;
 
 
