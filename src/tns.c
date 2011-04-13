@@ -12,6 +12,7 @@
 #include <string.h>
 #include <limits.h>
 #include <errno.h>
+#include <assert.h>
 #include "tns.h"
 #ifdef _TNS_FDPARSE
 #include <unistd.h>
@@ -20,19 +21,22 @@
 #define GUARD(got, error) if ((got) == (error)) return NULL
 #define JUMP(got, error, jump) do{if ((got) == (error)) {goto jump;}}while(0)
 
+#ifndef SIZE_MAX
+#define SIZE_MAX ((size_t)-1)
+#endif
+
 struct CTNetStr{
     tns_type    type;
     union {
         void *  ptr;
         int     integer;
         char *  str;
-        unsigned short   bool;
     } payload;
 };
 
 tnetstr None = {tns_None, NULL};
-tnetstr Yes = {.type = tns_Boolean, .payload.bool = 1};
-tnetstr No = {.type = tns_Boolean, .payload.bool = 0};
+tnetstr Yes = {.type = tns_Boolean, .payload.integer = 1};
+tnetstr No = {.type = tns_Boolean, .payload.integer = 0};
 
 
 static int next_fragment(char * in, char ** start, size_t * size, tns_type * );
@@ -79,7 +83,7 @@ tnetstr * tns_fdparse(int fd){
 tnetstr * tns_fileparse(FILE * file){
     char * payload = NULL;
     tns_type type = tns_Unknown;
-    size_t size = 0;
+    int size = 0;
     int total = 0;
 
 	if (file == NULL)
@@ -192,7 +196,7 @@ void tns_free(tnetstr * netstr){
 
 tnetstr * tns_get_dict(tnetstr * tns, char * key){
     tnetstr * ret = NULL;
-    size_t s = NULL;
+    size_t s = 0;
 	
 	if (tns == NULL || key == NULL)
 		return NULL;
@@ -261,7 +265,7 @@ tnetstr * tns_new_bool(int b){
 
     ret = new_tnetstr(tns_Boolean);
     GUARD(ret, NULL);
-    ret->payload.bool = (unsigned short) b;
+    ret->payload.integer = b;
     return ret;
 }
 
@@ -323,7 +327,7 @@ int tns_bool(tnetstr * tns){
 	
 	if (tns == NULL)
 		return 0;
-    return tns->payload.bool;
+    return tns->payload.integer;
 }
 
 size_t tns_strlen(tnetstr * tns){
@@ -361,7 +365,7 @@ static int get_msg_size(char * input, size_t * trailing, size_t * offset){
 
     while ((c = *input++) && c != ':'){
         acc++;
-        if (isdigit(c) && c - '0' =< SIZE_MAX - buff_size)
+        if (isdigit(c) && c - '0' <= SIZE_MAX - buff_size)
             buff_size = 10 * buff_size + c - '0';
         else
             return -1;

@@ -8,7 +8,7 @@
  */
 
 #ifndef _CNETSTR
-#define _CNETSTR "0.1-alpha"
+#define _CNETSTR "0.2.1-alpha"
 /* I should probably add parsing-event hooks to avoid the need for my
  * libs. That also means you could choose. */
 #include "ll.h"
@@ -64,9 +64,9 @@ tnetstr * tns_new_ht(void);
 /* tnetstr * tns_new_list(void); */
 
 /* misc (free, type) */
-void tns_free(tnetstr * netstr);
-tns_type   tns_get_type(tnetstr *);
-size_t tns_strlen(tnetstr * tns);
+void 		tns_free(tnetstr * netstr);
+tns_type	tns_get_type(tnetstr *);
+size_t		tns_strlen(tnetstr * tns);
 
 
 #endif
