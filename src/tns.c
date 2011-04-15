@@ -61,14 +61,17 @@ tnetstr * tns_fdparse(int fd){
     char c = 0;
     char * payload = NULL;
     tns_type type = tns_Unknown;
+    char acc = 0;
 
     while (read(fd, &c, 1) != -1 && c != ':'){
         acc++;
-        if (isdigit(c) && c - '0' =< SIZE_MAX - n)
+        if (acc < 10 && isdigit(c) && c - '0' =< SIZE_MAX - n)
             n = 10 * n + c - '0';
         else
             return NULL;
     }
+    
+    GUARD(acc, 0);
 
     payload = malloc(n);
     read(fd, payload, n);
@@ -357,7 +360,7 @@ static int free_tns_ht(size_t s, const char * k, const void * v, void * d){
 static int get_msg_size(char * input, size_t * trailing, size_t * offset){
     char c = 0;
     size_t buff_size = 0;
-    size_t acc = 1;
+    size_t acc = 0;
     
     assert(input != NULL);
     assert(trailing != NULL);
@@ -365,11 +368,14 @@ static int get_msg_size(char * input, size_t * trailing, size_t * offset){
 
     while ((c = *input++) && c != ':'){
         acc++;
-        if (isdigit(c) && c - '0' <= SIZE_MAX - buff_size)
+        if (acc < 10 && isdigit(c) && c - '0' <= SIZE_MAX - buff_size)
             buff_size = 10 * buff_size + c - '0';
         else
             return -1;
     }
+    
+    GUARD(acc, 0);
+    
     *offset = acc;
     *trailing = buff_size;
 
