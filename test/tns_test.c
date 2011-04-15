@@ -45,13 +45,12 @@ int clean_tns_suite(void) {
     return 0;
 }
 
-void test_tns(void){
-    tnetstr * dict, * str, * str2, * number;
-    char c[300];
+void test_strparse(void){
+	tnetstr * str2 = NULL;
+	char c[300];
     size_t l;
-
+	
 	/* Test str */
-	str2 = NULL;
     
     str2 = tns_parse("2:hi,");
     CU_ASSERT( NULL != str2 );
@@ -60,10 +59,24 @@ void test_tns(void){
     CU_ASSERT( 0 == strncmp("hi", c, l) );
     
     tns_free(str2);
-    str2 = NULL;
+}
 
+void test_number(void){
+	tnetstr * number = NULL;
+	
+    number = tns_parse("2:42#");
+    CU_ASSERT( NULL != number );
+    
+    CU_ASSERT( 1 == tns_int(number) );
+}
+
+void test_tns(void){
+    tnetstr * dict, * str, * number;
+    char c[300];
+    size_t l;
+	
 	/* Test dict */
-    dict = tns_parse("18:2:hi,6:hello!,1:1#}");
+    dict = tns_parse("22:2:hi,6:hello!,1:a,1:1#}");
     CU_ASSERT( NULL != dict );
     
     str = tns_get_dict(dict, "hi");
@@ -71,6 +84,9 @@ void test_tns(void){
     
     l = tns_str(str, c, 300);
     CU_ASSERT( 0 == strncmp("hello!", c, l) );
+    
+    number = tns_get_dict(dict, "a");
+    CU_ASSERT( 1 == tns_int(number) );
     
     tns_free(dict); /* str goes away with dict */
 

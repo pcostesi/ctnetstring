@@ -36,6 +36,8 @@
 int init_tns_suite(void);
 
 void test_tns(void);
+void test_strparse(void);
+void test_number(void);
 
 int clean_tns_suite(void);
 
@@ -56,7 +58,9 @@ int main(int argc, char **argv)
     }
 
     /*add the test cases to the suites */
-    if ((NULL == CU_add_test(tnsSuite, "test_tns", test_tns))) {
+    if ((NULL == CU_add_test(tnsSuite, "test_tns", test_tns)) ||
+		(NULL == CU_add_test(tnsSuite, "test_strparse", test_tns)) ||
+		(NULL == CU_add_test(tnsSuite, "test_number", test_tns))) {
         CU_cleanup_registry();
         return CU_get_error();
     }
