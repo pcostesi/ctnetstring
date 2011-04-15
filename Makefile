@@ -1,6 +1,6 @@
 IDIR = src/include
 EDIR = lib/cds/src/include
-CFLAGS = -I$(IDIR) -I$(EDIR)
+CFLAGS = -I$(IDIR) -I$(EDIR) -Wall -Werror
 CC = gcc
 
 SRC= src/
