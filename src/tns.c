@@ -138,6 +138,7 @@ tnetstr * tns_parser(char * payload, size_t size, tns_type type){
             break;
 
         case tns_None:
+			GUARD(size, 0);
             ret = new_tnetstr(tns_None);
             break;
 
