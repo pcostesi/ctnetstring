@@ -19,7 +19,6 @@
 #endif
 
 #define GUARD(got, error) if ((got) == (error)) return NULL
-#define JUMP(got, error, jump) do{if ((got) == (error)) {goto jump;}}while(0)
 
 #ifndef SIZE_MAX
 #define SIZE_MAX ((size_t)-1)
@@ -34,7 +33,7 @@ struct CTNetStr{
     } payload;
 };
 
-tnetstr None = {tns_None, NULL};
+tnetstr None = {.type = tns_None};
 tnetstr Yes = {.type = tns_Boolean, .payload.integer = 1};
 tnetstr No = {.type = tns_Boolean, .payload.integer = 0};
 
@@ -157,11 +156,12 @@ tnetstr * tns_parser(char * payload, size_t size, tns_type type){
         case tns_HT:
             ret = parse_HT(payload, size);
             break;
-
+           
         default:
-            return NULL;
-            /* free stuff up and throw an error */
+			break;
     }
+    
+    return ret;
 }
 
 void tns_free(tnetstr * netstr){
@@ -193,6 +193,9 @@ void tns_free(tnetstr * netstr){
         case tns_Boolean:
         case tns_None:
             return;
+           
+        default:
+			break;
     }
     
     free(netstr);
@@ -375,12 +378,13 @@ static int get_msg_size(char * input, size_t * trailing, size_t * offset){
             return -1;
     }
     
-    GUARD(acc, 0);
+    if (acc == 0)
+		return -1;
     
-    *offset = acc;
+    *offset = acc + 1;
     *trailing = buff_size;
 
-    return acc + buff_size;
+    return acc + buff_size + 1;
 }
 
 static tns_type get_msg_type(char t){
@@ -457,14 +461,17 @@ static tnetstr * parse_List(char * input, size_t len){
     while (len - consumed > 0){
 		
         next = next_fragment(input + consumed, &frag, &frag_size, &frag_type);
-        JUMP(next, -1, fragment_error);
+        if(next == -1)
+			goto cleanup;
         
         consumed += next;
         element = tns_parser(frag, frag_size, frag_type);
-        JUMP(element, NULL, element_error);
+        if (element == NULL)
+			goto cleanup;
         
         aux_list = ll_insert(list, &element, sizeof(tnetstr *));
-        JUMP(aux_list, NULL, element_error);
+        if(aux_list == NULL)
+			goto cleanup;
         
         list = aux_list;
     }
@@ -472,8 +479,7 @@ static tnetstr * parse_List(char * input, size_t len){
     ret->payload.ptr = ll_head(list);
     return ret;
 
-    element_error:
-    fragment_error:
+    cleanup:
         ret->payload.ptr = ll_head(list);
         tns_free(ret);
         return NULL;
@@ -504,34 +510,42 @@ static tnetstr * parse_HT(char * input, size_t len){
 
 	/* TODO: Fix this, using char-ranges instead of a buffer (this is ugly) */
     key = malloc(len);
-    JUMP(key, NULL, fragment_error);
+    if (key == NULL)
+		goto cleanup;
 
     while (len - consumed > 0){
         /* parse the string key */
         next = next_fragment(input + consumed, &frag, &frag_size, &frag_type);
-        JUMP(next, -1, fragment_error);
+        if (next == -1)
+			goto cleanup;
+        
         consumed += next;
 
+		if (frag_type != tns_String)
+			goto cleanup;
+        
         strncpy(key, frag, frag_size);
         key[frag_size] = 0;
 
         /* do the same, but for the matching value */
         next = next_fragment(input + consumed, &frag, &frag_size, &frag_type);
-        JUMP(next, -1, fragment_error);
+        if(next == -1)
+			goto cleanup;
         
         consumed += next;
         element = tns_parser(frag, frag_size, frag_type);
-        JUMP(element, NULL, element_error);
+        if (element == NULL)
+			goto cleanup;
         
         table = ht_set(table, key, &element, sizeof(tnetstr *));
-        JUMP(table, NULL, element_error);
+        if (table == NULL)
+			goto cleanup;
     }
 
     free(key);
     return ret;
 
-    fragment_error:
-    element_error:
+    cleanup:
         tns_free(ret);
         free(key);
         return NULL;
@@ -582,4 +596,3 @@ static int next_fragment(char * in, char ** start, size_t * size, tns_type * typ
 }
 
 #undef GUARD
-#undef JUMP
