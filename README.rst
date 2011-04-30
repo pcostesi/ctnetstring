@@ -19,5 +19,4 @@ This library requires to be linked against the C Data Structures library
 Compiling
 ---------
 
-There is no Makefile for the time being -- I'll add one later as I've
-been moving folders.
+Just run `make`. 
