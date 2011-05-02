@@ -28,6 +28,7 @@ typedef enum CTNS_Types {
     tns_Boolean	= '!' 	/* ! (true!, false!, yes!, no!, True!, False!) */
 } tns_type;
 
+typedef int (*tns_eachf)(int item, tnetstr * elem, void * d);
 
 /* parsing and parsing primitives */
 #ifdef _TNS_FDPARSE
@@ -55,10 +56,10 @@ tnetstr * tns_dict_get(tnetstr * tns, char * key);
 tnetstr * tns_dict_set(tnetstr * tns, char * key, tnetstr * val);
 tnetstr * tns_dict_del(tnetstr * tns, char * key);
 /* list modifiers *./
-tnetstr * tns_list_from_array(void * arr, size_t size, size_t elem_size);
 tnetstr * tns_list_add(tnetstr * list, tnetstr * elem);
 tnetstr * tns_list_del(tnetstr * list_elem);
-tnetstr * tns_list_swp(tnetstr * list, tnetstr * new); 
+tnetstr * tns_list_swp(tnetstr * list, tnetstr * new);
+int		  tns_list_foreach(tns_eachf * f, void * d);
  */
 
 /* type constructors */
@@ -67,7 +68,7 @@ tnetstr * tns_new_int(int i);
 tnetstr * tns_new_bool(int b);
 tnetstr * tns_new_none(void);
 tnetstr * tns_new_ht(void);
-/* tnetstr * tns_new_list(void); */
+tnetstr * tns_new_list(tnetstr * arr, size_t size); 
 
 /* misc (free, type) */
 void 		tns_free(tnetstr * netstr);
