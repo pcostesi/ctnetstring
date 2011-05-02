@@ -79,13 +79,13 @@ void test_tns(void){
     dict = tns_parse("22:2:hi,6:hello!,1:a,1:1#}");
     CU_ASSERT( NULL != dict );
     
-    str = tns_get_dict(dict, "hi");
+    str = tns_dict_get(dict, "hi");
     CU_ASSERT( NULL != str );
     
     l = tns_str(str, c, 300);
     CU_ASSERT( 0 == strncmp("hello!", c, l) );
     
-    number = tns_get_dict(dict, "a");
+    number = tns_dict_get(dict, "a");
     CU_ASSERT( 1 == tns_int(number) );
     
     tns_free(dict); /* str goes away with dict */

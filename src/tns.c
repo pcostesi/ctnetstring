@@ -201,7 +201,7 @@ void tns_free(tnetstr * netstr){
     free(netstr);
 }
 
-tnetstr * tns_get_dict(tnetstr * tns, char * key){
+tnetstr * tns_dict_get(tnetstr * tns, char * key){
     tnetstr * ret = NULL;
     size_t s = 0;
 	
@@ -216,7 +216,7 @@ tnetstr * tns_get_dict(tnetstr * tns, char * key){
     return s ? ret : NULL;
 }
 
-tnetstr * tns_set_dict(tnetstr * tns, char * key, tnetstr * val){
+tnetstr * tns_dict_set(tnetstr * tns, char * key, tnetstr * val){
     ht * t = NULL;
 
     if (tns == NULL || tns->type != tns_HT || key == NULL)
@@ -227,7 +227,7 @@ tnetstr * tns_set_dict(tnetstr * tns, char * key, tnetstr * val){
     return t == NULL ? NULL : tns;
 }
 
-tnetstr * tns_del_dict(tnetstr * tns, char * key){
+tnetstr * tns_dict_del(tnetstr * tns, char * key){
     ht * t = NULL;
 
     if (tns == NULL || tns->type != tns_HT || key == NULL)

@@ -38,12 +38,12 @@ tnetstr * tns_parse(char * input);
 tnetstr * tns_parser(char * payload, size_t size, tns_type type);
 
 /* type macros */
-#define TNS_is_None(T) tns_get_type(T) == tns_None
-#define TNS_is_HT(T) tns_get_type(T) == tns_HT
-#define TNS_is_List(T) tns_get_type(T) == tns_List
-#define TNS_is_String(T) tns_get_type(T) == tns_String
-#define TNS_is_Integer(T) tns_get_type(T) == tns_Integer
-#define TNS_is_Boolean(T) tns_get_type(T) == tns_Boolean
+#define TNS_is_None(T) 		(tns_get_type(T) == tns_None)
+#define TNS_is_HT(T) 		(tns_get_type(T) == tns_HT)
+#define TNS_is_List(T) 		(tns_get_type(T) == tns_List)
+#define TNS_is_String(T) 	(tns_get_type(T) == tns_String)
+#define TNS_is_Integer(T) 	(tns_get_type(T) == tns_Integer)
+#define TNS_is_Boolean(T) 	(tns_get_type(T) == tns_Boolean)
 
 /* type getters */
 int     tns_int(tnetstr *);
@@ -51,9 +51,15 @@ size_t  tns_str(tnetstr *, char * buff, size_t s);
 int     tns_bool(tnetstr *);
 
 /* type modifiers */
-tnetstr * tns_get_dict(tnetstr * tns, char * key);
-tnetstr * tns_set_dict(tnetstr * tns, char * key, tnetstr * val);
-tnetstr * tns_del_dict(tnetstr * tns, char * key);
+tnetstr * tns_dict_get(tnetstr * tns, char * key);
+tnetstr * tns_dict_set(tnetstr * tns, char * key, tnetstr * val);
+tnetstr * tns_dict_del(tnetstr * tns, char * key);
+/* list modifiers *./
+tnetstr * tns_list_from_array(void * arr, size_t size, size_t elem_size);
+tnetstr * tns_list_add(tnetstr * list, tnetstr * elem);
+tnetstr * tns_list_del(tnetstr * list_elem);
+tnetstr * tns_list_swp(tnetstr * list, tnetstr * new); 
+ */
 
 /* type constructors */
 tnetstr * tns_new_str(char * str, size_t s);
