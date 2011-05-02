@@ -310,7 +310,7 @@ tnetstr * tns_new_list(tnetstr * arr, size_t size){
 	size_t i = 0;
 	
 	if (size > 0){
-		list = ll_insert(NULL, arr + 0, sizeof(tnetstr *);
+		list = ll_insert(NULL, arr + 0, sizeof(tnetstr *));
 		temp = list;
 		if (list == NULL)
 			return NULL;
