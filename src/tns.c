@@ -201,7 +201,7 @@ void tns_free(tnetstr * netstr){
     free(netstr);
 }
 
-tnetstr * tns_get_dict(tnetstr * tns, char * key){
+tnetstr * tns_dict_get(tnetstr * tns, char * key){
     tnetstr * ret = NULL;
     size_t s = 0;
 	
@@ -216,7 +216,7 @@ tnetstr * tns_get_dict(tnetstr * tns, char * key){
     return s ? ret : NULL;
 }
 
-tnetstr * tns_set_dict(tnetstr * tns, char * key, tnetstr * val){
+tnetstr * tns_dict_set(tnetstr * tns, char * key, tnetstr * val){
     ht * t = NULL;
 
     if (tns == NULL || tns->type != tns_HT || key == NULL)
@@ -227,7 +227,7 @@ tnetstr * tns_set_dict(tnetstr * tns, char * key, tnetstr * val){
     return t == NULL ? NULL : tns;
 }
 
-tnetstr * tns_del_dict(tnetstr * tns, char * key){
+tnetstr * tns_dict_del(tnetstr * tns, char * key){
     ht * t = NULL;
 
     if (tns == NULL || tns->type != tns_HT || key == NULL)
@@ -236,6 +236,13 @@ tnetstr * tns_del_dict(tnetstr * tns, char * key){
     t = ht_del(tns->payload.ptr, key);
     return t == NULL ? NULL : tns;
 }
+
+/*
+tnetstr * tns_list_add(tnetstr * list, tnetstr * elem);
+tnetstr * tns_list_del(tnetstr * list_elem);
+tnetstr * tns_list_swp(tnetstr * list, tnetstr * new);
+int		  tns_list_foreach(tns_eachf * f, void * d);
+*/
 
 tnetstr * tns_new_str(char * str, size_t s){
     tnetstr * ret = NULL;
@@ -286,6 +293,7 @@ tnetstr * tns_new_ht(void){
 
     ret = new_tnetstr(tns_HT);
     GUARD(ret, NULL);
+    
     t = ht_new(NULL);
     if (t == NULL){
         free(ret);
@@ -293,6 +301,39 @@ tnetstr * tns_new_ht(void){
     }
     ret->payload.ptr = t;
     return ret;
+}
+
+tnetstr * tns_new_list(tnetstr * arr, size_t size){
+	tnetstr * ret = NULL;
+	llist * list = NULL;
+	llist * temp = NULL;
+	size_t i = 0;
+	
+	if (size > 0){
+		list = ll_insert(NULL, arr + 0, sizeof(tnetstr *));
+		temp = list;
+		if (list == NULL)
+			return NULL;
+	}
+	
+	for (i = 1; i < size; i++){
+		temp = ll_insert(temp, arr + i, sizeof(tnetstr *));
+		if (temp == NULL){
+			ll_free(list);
+			return NULL;
+		}
+	}
+	
+	ret = new_tnetstr(tns_List);
+	if (ret == NULL){
+		ll_free(list);
+		return NULL;
+	}
+	
+	ret->payload.ptr = list;
+	
+	return ret;
+		
 }
 
 tns_type tns_get_type(tnetstr * tns){
