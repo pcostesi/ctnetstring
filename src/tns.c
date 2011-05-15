@@ -47,7 +47,7 @@ static tnetstr * parse_String(char * input, size_t len);
 static tnetstr * new_tnetstr(tns_type type);
 static tns_type get_msg_type(char t);
 static int get_msg_size(char * input, size_t * trailing, size_t * offset);
-static int free_tns_ht(size_t s, const char * k, const void * v, void * d);
+static int free_tns_ht(const void * k, size_t ks, const void * v, size_t s, void * d);
 
 /* Public functions */
 
@@ -205,14 +205,18 @@ tnetstr * tns_dict_get(tnetstr * tns, char * key){
     tnetstr * ret = NULL;
     size_t s = 0;
 	
+	assert(tns != NULL);
+	assert(key != NULL);
+	
 	if (tns == NULL || key == NULL)
 		return NULL;
 
     if (tns->type != tns_HT)
         return NULL;
     
-    s = ht_get(tns->payload.ptr, key, &ret, sizeof(tnetstr *));
-    
+    assert(tns->payload.ptr != NULL);
+    s = ht_get(tns->payload.ptr, key, 0, &ret, sizeof(tnetstr *));
+
     return s ? ret : NULL;
 }
 
@@ -222,7 +226,7 @@ tnetstr * tns_dict_set(tnetstr * tns, char * key, tnetstr * val){
     if (tns == NULL || tns->type != tns_HT || key == NULL)
         return NULL;
     
-    t = ht_set(tns->payload.ptr, key, &val, sizeof(tnetstr *));
+    t = ht_set(tns->payload.ptr, key, 0, &val, sizeof(tnetstr *));
     
     return t == NULL ? NULL : tns;
 }
@@ -233,7 +237,7 @@ tnetstr * tns_dict_del(tnetstr * tns, char * key){
     if (tns == NULL || tns->type != tns_HT || key == NULL)
         return NULL;
     
-    t = ht_del(tns->payload.ptr, key);
+    t = ht_del(tns->payload.ptr, key, 0);
     return t == NULL ? NULL : tns;
 }
 
@@ -391,7 +395,7 @@ size_t tns_strlen(tnetstr * tns){
 
 /* Helpers and other private functions */
 
-static int free_tns_ht(size_t s, const char * k, const void * v, void * d){
+static int free_tns_ht(const void * k, size_t ks, const void * v, size_t s, void * d){
 	
 	/* The following is guaranteed NOT to happen by C Data Structures */
 	assert(v != NULL);
@@ -530,11 +534,13 @@ static tnetstr * parse_HT(char * input, size_t len){
     tnetstr * ret = NULL;
     tnetstr * element = NULL;
     char * frag = NULL;
-    char * key = NULL;
+    char * str = NULL;
     size_t frag_size = 0;
+    size_t str_size = 0;
     size_t consumed = 0;
     int next = 0;
     tns_type frag_type = tns_Unknown;
+    tns_type str_type = tns_Unknown;
     ht * table = NULL;
 
 	assert(input != NULL);
@@ -548,25 +554,17 @@ static tnetstr * parse_HT(char * input, size_t len){
         return NULL;
     }
     ret->payload.ptr = table;
-
-	/* TODO: Fix this, using char-ranges instead of a buffer (this is ugly) */
-    key = malloc(len);
-    if (key == NULL)
-		goto cleanup;
-
+    
     while (len - consumed > 0){
         /* parse the string key */
-        next = next_fragment(input + consumed, &frag, &frag_size, &frag_type);
+        next = next_fragment(input + consumed, &str, &str_size, &str_type);
         if (next == -1)
 			goto cleanup;
         
         consumed += next;
 
-		if (frag_type != tns_String)
+		if (str_type != tns_String)
 			goto cleanup;
-        
-        strncpy(key, frag, frag_size);
-        key[frag_size] = 0;
 
         /* do the same, but for the matching value */
         next = next_fragment(input + consumed, &frag, &frag_size, &frag_type);
@@ -578,17 +576,23 @@ static tnetstr * parse_HT(char * input, size_t len){
         if (element == NULL)
 			goto cleanup;
         
-        table = ht_set(table, key, &element, sizeof(tnetstr *));
+        assert(str != NULL);
+        assert(str_size > 0);
+        assert(element != NULL);
+        table = ht_set(table, str, str_size, &element, sizeof(tnetstr *));
         if (table == NULL)
-			goto cleanup;
+			goto cleanup_frag;
+		/* check whatever we put is on the table */
+		assert(ht_get(table, str, str_size, &element, sizeof(tnetstr *)) != 0);
+
     }
 
-    free(key);
     return ret;
 
+	cleanup_frag:
+		tns_free(element);
     cleanup:
         tns_free(ret);
-        free(key);
         return NULL;
 }
 

@@ -48,7 +48,7 @@ int clean_tns_suite(void) {
 void test_strparse(void){
 	tnetstr * str2 = NULL;
 	char c[300];
-    size_t l;
+    size_t l = 0;
 	
 	/* Test str */
     
@@ -71,9 +71,11 @@ void test_number(void){
 }
 
 void test_tns(void){
-    tnetstr * dict, * str, * number;
+    tnetstr * dict = NULL;
+    tnetstr * str = NULL;
+    tnetstr * number = NULL;
     char c[300];
-    size_t l;
+    size_t l = 0;
 	
 	/* Test dict */
     dict = tns_parse("22:2:hi,6:hello!,1:a,1:1#}");
