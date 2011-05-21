@@ -73,6 +73,8 @@ tnetstr * tns_fdparse(int fd){
     GUARD(acc, 0);
 
     payload = malloc(n);
+    GUARD(payload, NULL);
+    
     read(fd, payload, n);
     read(fd, &c, 1);
     type = get_msg_type(c);
