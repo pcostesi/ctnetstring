@@ -68,6 +68,11 @@ void test_number(void){
     CU_ASSERT( NULL != number );
     
     CU_ASSERT( 1 == tns_int(number) );
+    
+    number = tns_parse("3:4.2^");
+    CU_ASSERT( NULL != number );
+    
+    CU_ASSERT( 4.2 == tns_float(number) );
 }
 
 void test_tns(void){

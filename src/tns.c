@@ -30,6 +30,7 @@ struct CTNetStr{
         void *  ptr;
         int     integer;
         char *  str;
+        float   f;
     } payload;
 };
 
@@ -41,6 +42,7 @@ tnetstr No = {.type = tns_Boolean, .payload.integer = 0};
 static int next_fragment(char * in, char ** start, size_t * size, tns_type * );
 static tnetstr * parse_Boolean(char * input, size_t len);
 static tnetstr * parse_Integer(char * input, size_t len);
+static tnetstr * parse_Float(char * input, size_t len);
 static tnetstr * parse_HT(char * input, size_t len);
 static tnetstr * parse_List(char * input, size_t len);
 static tnetstr * parse_String(char * input, size_t len);
@@ -153,6 +155,10 @@ tnetstr * tns_parser(char * payload, size_t size, tns_type type){
 
         case tns_Integer:
             ret = parse_Integer(payload, size);
+            break;
+            
+        case tns_Float:
+            ret = parse_Float(payload, size);
             break;
 
         case tns_HT:
@@ -280,6 +286,15 @@ tnetstr * tns_new_int(int i){
     return ret;
 }
 
+tnetstr * tns_new_float(float f){
+    tnetstr * ret = NULL;
+
+    ret = new_tnetstr(tns_Float);
+    GUARD(ret, NULL);
+    ret->payload.f = f;
+    return ret;
+}
+
 tnetstr * tns_new_bool(int b){
     tnetstr * ret = NULL;
 
@@ -355,6 +370,17 @@ int tns_int(tnetstr * tns){
 	}
 	
     return tns->payload.integer;
+}
+
+float tns_float(tnetstr * tns){
+	assert(tns != NULL);
+	
+	if (tns == NULL){
+		errno = EDOM;
+		return -1;
+	}
+	
+    return tns->payload.f;
 }
 
 size_t tns_str(tnetstr * tns, char * buff, size_t s){
@@ -442,6 +468,8 @@ static tns_type get_msg_type(char t){
             return tns_List;
         case '#':
             return tns_Integer;
+        case '^':
+            return tns_Float;
         case '}':
             return tns_HT;
         case '~':
@@ -599,7 +627,7 @@ static tnetstr * parse_HT(char * input, size_t len){
 }
 
 static tnetstr * parse_Integer(char * input, size_t len){
-    size_t n = 0;
+    int n = 0;
     tnetstr * ret = NULL;
     
     assert(input != NULL);
@@ -607,13 +635,58 @@ static tnetstr * parse_Integer(char * input, size_t len){
     ret = new_tnetstr(tns_Integer);
     GUARD(ret, NULL);
 
+    while (isspace(*input)) 
+        input++;
+    
     for (n = 0; len > 0 && isdigit(*input); len--, input++){
         n = n * 10 + *input - '0';
+    }
+    
+    if (len > 0){
+        tns_free(ret);
+        return NULL;
     }
     
     ret->payload.integer = n;
     return ret;
 }
+
+static tnetstr * parse_Float(char * input, size_t len){
+    int n = 0;
+    int s = 0;
+    int q = 0;
+    tnetstr * ret = NULL;
+    
+    assert(input != NULL);
+    
+    ret = new_tnetstr(tns_Float);
+    GUARD(ret, NULL);
+
+    while (isspace(*input)) 
+        input++;
+    
+    for (; len > 0 && isdigit(*input); len--, input++){
+        n = n * 10 + *input - '0';
+    }
+    
+    if (*input++ != '.')
+        goto cleanup;
+    
+    for (; len > 0 && isdigit(*input); q++, len--, input++){
+        s = s * 10 + *input - '0';
+    }
+    
+    if (len > 0)
+        goto cleanup;
+    
+    ret->payload.f = n + (float)(1.0 / s);
+    return ret;
+    
+    cleanup:
+        tns_free(ret);
+        return NULL;
+}
+
 
 static tnetstr * parse_Boolean(char * input, size_t len){
 	assert(input != NULL);

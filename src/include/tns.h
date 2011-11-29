@@ -24,6 +24,7 @@ typedef enum CTNS_Types {
     tns_List	= ']',	/* ] */
     tns_HT		= '}',	/* } */
     tns_Integer	= '#',	/* # */
+    tns_Float	= '^',	/* ^ */
     tns_None	= '~',	/* ~ */
     tns_Boolean	= '!' 	/* ! (true!, false!, yes!, no!, True!, False!) */
 } tns_type;
@@ -44,10 +45,12 @@ tnetstr * tns_parser(char * payload, size_t size, tns_type type);
 #define TNS_is_List(T) 		(tns_get_type(T) == tns_List)
 #define TNS_is_String(T) 	(tns_get_type(T) == tns_String)
 #define TNS_is_Integer(T) 	(tns_get_type(T) == tns_Integer)
+#define TNS_is_Float(T) 	(tns_get_type(T) == tns_Float)
 #define TNS_is_Boolean(T) 	(tns_get_type(T) == tns_Boolean)
 
 /* type getters */
 int     tns_int(tnetstr *);
+float   tns_float(tnetstr *);
 size_t  tns_str(tnetstr *, char * buff, size_t s);
 int     tns_bool(tnetstr *);
 
@@ -65,6 +68,7 @@ int		  tns_list_foreach(tns_eachf * f, void * d);
 /* type constructors */
 tnetstr * tns_new_str(char * str, size_t s);
 tnetstr * tns_new_int(int i);
+tnetstr * tns_new_float(float f);
 tnetstr * tns_new_bool(int b);
 tnetstr * tns_new_none(void);
 tnetstr * tns_new_ht(void);
